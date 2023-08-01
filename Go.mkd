@@ -1,0 +1,110 @@
+- Go语言学习
+#  目录
+## Go安装
+## 运行Hello
+## GO的函数定义
+## GO数据类型、变量常量定义
+## GO控制语句
+## GO函数&方法
+## GO结构体
+## GO数组
+## GO字符串
+## GO指针
+## GO接口
+## GO并发
+## GO异常
+## GO mod使用
+## GIN
+
+## GO安装
+```
+yum install golang
+apt-get install golang
+或去<http://ftp.loongnix.cn/>下载指定golang版本，解压并设置环境变量
+sudo vim $HOME/.bashrc
+export GOROOT=/usr/local/go  #设置为go安装的路径，有些安装包会自动设置默认的goroot
+export GOPATH=$HOME/go-workspace   #默认安装包的路径
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+source $HOME/.bashrc　　#注：这里不要用sudo执行，sudo无该命令
+```
+
+## GO的基本运行
+1. ` go run xxx.go `
+2. ` go build xxx.go   ./xxx`
+go build [-o][指定build的文件名] 
+```
+__example__
+yzw@yzw-pc:~/GO$ ls
+hello.go  select.go  Web.go
+yzw@yzw-pc:~/GO$ go run hello.go
+__或__
+yzw@yzw-pc:~/GO$ ls
+hello.go  select.go  Web.go
+yzw@yzw-pc:~/GO$ go build hello.go
+yzw@yzw-pc:~/GO$ ./hello
+```
+## GO的函数定义
+```
+func function_name(Parameter_list) Return_type{
+    //body
+}
+```
+__example__
+func getA(int a) int{
+    return a;
+}
+## GO的关键字、数据类型、常量变量
+### 关键字
+语言关键字 go 
+引用声明关键字 package import func var const struct type 
+调用关键字 return switch case select break fallthrough continue default if else for range goto 
+chan map暂不知用法
+### 数据类型
+1. 基本类型
+``` var name type = value || name := value ```
+数字、字符串、布尔
+2. 聚合类型
+数组、结构体
+__结构体__ 不支持继承但可以组合性质的轻量级类
+定义struct:
+```type name struct {
+    name type
+    name type
+    ...
+}
+或
+type name struct {
+    name , name ,name type
+    name type
+}```
+声明struct： `var a = name{value,value...}`
+__数组__ 
+`var name[len]type ||  name := [len]type{value,value...}`
+多维：`var name[len][len]type || name := [len][len]type{{},{}...}`
+数组是定长，因此使用var但不赋予实际值的声明时长度不可以使用...
+len(arr_name)
+ - 数组复制 `arr1 := arr2  arr3 := &arr2  引用数组内元素时 (*arr3)[i]`
+ - 作为参数 `arr_name [len]type`
+ - 切片(升级的不定长数组,是数组的引用) 
+   `var name[]type  || var slice = []type{} || slice := []type{}`  
+   `slice := arr[i:j] || make([]type,i,j) || make([]type,j)`
+   关键在于slice可以变换大小,因为它只是一个引用
+- 
+3. 引用类型
+指针 如 t := &a t是指针
+切片 slice := arr[i:j]
+map集合、函数、Channel
+4. 接口类型
+接口类型 
+### 常量
+### 变量
+
+
+
+
+### go mod使用
+创建一个github仓库
+pull或者clone下来
+接着go mod init github.com/username/reponame
+初始化mod后，下载gin
+go get -u github.com/gin-gonic/gin

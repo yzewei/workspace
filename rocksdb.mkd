@@ -1,0 +1,259 @@
+# rocksdb
+rocksdb构建指导      
+构建版本：rocksdb5.18.4
+## 0. RocksDB简介
+
+## 1. 构建环境
+```
+c# 系统信息
+[root@bdfffb2fc3db lib]#   cat /etc/os-release 
+NAME="Loongnix-Server Linux"
+VERSION="8"
+ID="loongnix-server"
+ID_LIKE="rhel fedora centos"
+VERSION_ID="8"
+PLATFORM_ID="platform:lns8"
+PRETTY_NAME="Loongnix-Server Linux 8"
+ANSI_COLOR="0;31"
+CPE_NAME="cpe:/o:loongnix-server:loongnix-server:8"
+HOME_URL="http://www.loongnix.cn/"
+BUG_REPORT_URL="http://bugs.loongnix.cn/"
+CENTOS_MANTISBT_PROJECT="Loongnix-server-8"
+CENTOS_MANTISBT_PROJECT_VERSION="8"
+
+# 内核信息
+[root@bdfffb2fc3db lib]# uname -r
+4.19.0-19-loongson-3
+```
+
+## 2. 安装软件包
+需要zlib、bzip2、lz4、snappy、zstandard、gflags
+```Install snappy:
+
+    sudo yum install snappy snappy-devel
+Install zlib:
+
+    sudo yum install zlib zlib-devel
+Install bzip2:
+
+    sudo yum install bzip2 bzip2-devel
+Install lz4:
+
+    sudo yum install lz4-devel
+Install ASAN (optional for debugging):
+
+    sudo yum install libasan
+    //找不到libasan，yum search asan，将找到的两个文件进行安装
+Install zstandard:
+
+    With EPEL:
+
+    sudo yum install libzstd-devel
+```
+
+### 安装gflags （2.0及一下版本需要）更改config配置
+构建[参考文件](https://blog.csdn.net/weixin_38976558/article/details/91616093)
+```
+    Install gflags:
+    git clone https://github.com/gflags/gflags.git
+    cd gflags
+    git checkout v2.0
+    ./configure && make && sudo make install
+    #执行该命令前替换config
+```
+查找本机config.guess和config.sub文件的位置
+``` 
+[root@39ed9065abd2 gflags]# find /usr -name config.guess
+/usr/share/automake-1.16/config.guess
+/usr/share/libtool/build-aux/config.guess
+
+[root@39ed9065abd2 gflags]# find /usr -name config.sub
+/usr/share/automake-1.16/config.sub
+/usr/share/libtool/build-aux/config.sub
+
+```
+查看是否包含当前架构信息，确定后复制到当前gflags项目目录下，覆盖config.guess与config.sub文件
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/xxx -DBUILD_SHARED_LIBS=1 -DCMAKE_BUILD_TYPE=Release 
+make && make install	
+可以看到安装到了usr/local/lib/cmake/gflags下
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/xxx/gcc-5.3/lib64:/xxx/gflags/lib
+export LIBRARY_PATH=$LIBRARY_PATH:/xxx/gflags/include
+
+
+## 3. 编译构建rocksdb5.18.4
+进入rocksdb文件夹
+- 编译静态库，获得librocksdb.a
+```
+make static_lib
+
+make install-static
+```
+- 编译动态库，获得librocksdb.so
+```
+make shared_lib
+
+make install-shared
+```
+- *如果嫌命令太多，可以进行以下操作：
+```
+make all
+```
+
+- 安装完毕，查看/usr/lib和/usr/local/lib是否存在 librocksdb.a librocksdb.so
+- 添加环境变量 export 或者 vim /etc/profile
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
+export DB_DIR=/raid/db
+
+export WAL_DIR=/raid/wal
+
+export TEMP=/raid/tmp
+
+export OUTPUT_DIR=/raid/output
+```
+
+## 4. 压力测试
+添加db_bench文件
+``` 
+cd tools
+cmake .. -DCMAKE_PREFIX_PATH=/usr/local/lib/cmake/gflags  -DWITH_SNAPPY=1 -DWITH_LZ4=1 -DWITH_ZLIB=1 -DWITH_ZSTD=1 -DCMAKE_BUILD_TYPcE=Release=release
+上述命令生成了makefile文件
+make -j
+生成db_bench文件
+```
+``` ./tools/benchmark.sh bulkload ```
+查看压力测试是否成功，确定是否安装正确
+
+## 5. 打包rocksdbjni
+参考[官方文档](https://github.com/facebook/rocksdb/blob/86634885ebb59bd7a7950db9a540d80a3ac4ad7e/java/RELEASE.md?plain=1#L13)
+该命令打包静态jar包
+`make jclean clean rocksdbjavastaticpublish `
+需要修改：
+```
+diff --git a/Makefile b/Makefile
+index 89f90b8..abf2094 100644
+--- a/Makefile
++++ b/Makefile 
+
+rocksdbjavastaticdockerx86:
+        mkdir -p java/target
+        DOCKER_LINUX_X86_CONTAINER=`docker ps -aqf name=rocksdb_linux_x86-be`; \
+@@ -1882,8 +1893,10 @@ rocksdbjavastaticpublishcentral:
+        mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-linux32.jar -Dclassifier=linux32
+        mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-osx.jar -Dclassifier=osx
+        mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-win64.jar -Dclassifier=win64
++       mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-loong64.jar -Dclassifier=loong64
+        mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH).jar
+```
+
+该命令打包rocksdb的docker环境：(不要在服务器下打包)
+` make jclean clean rocksdbjavastaticreleasedocker`
+打包时需要修改并配置java环境变量、预装docker
+```
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -50,6 +50,9 @@ option(WITH_LZ4 "build with lz4" OFF)
+ option(WITH_ZLIB "build with zlib" OFF)
+ option(WITH_ZSTD "build with zstd" OFF)
+ option(WITH_WINDOWS_UTF8_FILENAMES "use UTF8 as characterset for opening files, regardles of the system code page" OFF)
++
++include_directories(/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.312.b07-8.1.10.lns8.loongarch64/include/)
++
+ if (WITH_WINDOWS_UTF8_FILENAMES)
+   add_definitions(-DROCKSDB_WINDOWS_UTF8_FILENAMES)
+ endif()
+diff --git a/Makefile b/Makefile
+index 89f90b8..00011c2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1661,8 +1661,9 @@ ROCKSDB_JAVADOCS_JAR = rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PA
+ ROCKSDB_SOURCES_JAR = rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-sources.jar
+ SHA256_CMD = sha256sum
+ 
+-ZLIB_VER ?= 1.2.11
+-ZLIB_SHA256 ?= c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
++ZLIB_VER ?= 1.2.13
++ZLIB_SHA256 ?= b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30
++#ZLIB_SHA256 ?= c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
+ ZLIB_DOWNLOAD_BASE ?= http://zlib.net
+ BZIP2_VER ?= 1.0.6
+ BZIP2_SHA256 ?= a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd
+@@ -1673,8 +1674,9 @@ SNAPPY_DOWNLOAD_BASE ?= https://github.com/google/snappy/archive
+ LZ4_VER ?= 1.9.2
+ LZ4_SHA256 ?= 658ba6191fa44c92280d4aa2c271b0f4fbc0e34d249578dd05e50e76d0e5efcc
+ LZ4_DOWNLOAD_BASE ?= https://github.com/lz4/lz4/archive
+-ZSTD_VER ?= 1.4.4
+-ZSTD_SHA256 ?= a364f5162c7d1a455cc915e8e3cf5f4bd8b75d09bc0f53965b0c9ca1383c52c8
++ZSTD_VER ?= 1.5.0
++#ZSTD_SHA256 ?= a364f5162c7d1a455cc915e8e3cf5f4bd8b75d09bc0f53965b0c9ca1383c52c8
++ZSTD_SHA256 ?= 0d9ade222c64e912d6957b11c923e214e2e010a18f39bec102f572e693ba2867
+ ZSTD_DOWNLOAD_BASE ?= https://github.com/facebook/zstd/archive
+ CURL_SSL_OPTS ?= --tlsv1
+ 
+@@ -1829,16 +1831,26 @@ rocksdbjavastatic: $(java_static_all_libobjects)
+        cd java/src/main/java;jar -cf ../../../target/$(ROCKSDB_SOURCES_JAR) org
+ 
+ rocksdbjavastaticrelease: rocksdbjavastatic
+-       cd java/crossbuild && vagrant destroy -f && vagrant up linux32 && vagrant halt linux32 && vagrant up linux64 && vagrant halt linux64
++       #cd java/crossbuild && vagrant destroy -f && vagrant up linux32 && vagrant halt linux32 && vagrant up linux64 && vagrant halt linux64
+        cd java;jar -cf target/$(ROCKSDB_JAR_ALL) HISTORY*.md
+-       cd java/target;jar -uf $(ROCKSDB_JAR_ALL) librocksdbjni-*.so librocksdbjni-*.jnilib
++       #cd java/target;jar -uf $(ROCKSDB_JAR_ALL) librocksdbjni-*.so librocksdbjni-*.jnilib
++       cd java/target;jar -uf $(ROCKSDB_JAR_ALL) librocksdbjni-*.so
+        cd java/target/classes;jar -uf ../$(ROCKSDB_JAR_ALL) org/rocksdb/*.class org/rocksdb/util/*.class
+ 
+-rocksdbjavastaticreleasedocker: rocksdbjavastatic rocksdbjavastaticdockerx86 rocksdbjavastaticdockerx86_64
++rocksdbjavastaticreleasedocker: rocksdbjavastatic rocksdbjavastaticdockerloong_64
++#rocksdbjavastaticreleasedocker: rocksdbjavastatic rocksdbjavastaticdockerx86 rocksdbjavastaticdockerx86_64
+        cd java;jar -cf target/$(ROCKSDB_JAR_ALL) HISTORY*.md
+        cd java/target;jar -uf $(ROCKSDB_JAR_ALL) librocksdbjni-*.so librocksdbjni-*.jnilib
+        cd java/target/classes;jar -uf ../$(ROCKSDB_JAR_ALL) org/rocksdb/*.class org/rocksdb/util/*.class
+ 
++rocksdbjavastaticdockerloong_64:
++       mkdir -p java/target
++       DOCKER_LINUX_LOONG_64_CONTAINER=`docker ps -aqf name=rocksdb_linux_loong_64-be`; \
++       if [ -z "$$DOCKER_LINUX_LOONG_64_CONTAINER" ]; then \
++                docker container create --attach stdin --attach stdout --attach stderr --volume `pwd`:/rocksdb-host --name rocksdb_linux_loong_64-be evolvedbinary/rocksjava:centos6_loong_64-be /rocksdb-host/java/crossbuild/docker-build-linux-centos.sh; \
++        fi
++       docker start -a rocksdb_linux_loong_64-be
++
+ rocksdbjavastaticdockerx86:
+        mkdir -p java/target
+        DOCKER_LINUX_X86_CONTAINER=`docker ps -aqf name=rocksdb_linux_x86-be`; \
+@@ -1876,13 +1888,19 @@ rocksdbjavastaticpublish: rocksdbjavastaticrelease rocksdbjavastaticpublishcentr
+ rocksdbjavastaticpublishdocker: rocksdbjavastaticreleasedocker rocksdbjavastaticpublishcentral
+ 
+ rocksdbjavastaticpublishcentral:
+-       mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-javadoc.jar -Dclassifier=javadoc
+-       mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-sources.jar -Dclassifier=sources
+-       mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-linux64.jar -Dclassifier=linux64
+-       mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-linux32.jar -Dclassifier=linux32
+-       mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-osx.jar -Dclassifier=osx
+-       mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-win64.jar -Dclassifier=win64
+-       mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH).jar
++       mvn install:install-file -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-javadoc.jar -DgroupId=org -DartifactId=rocksdb -Dversion=5.18.4 -Dpackaging=jar -DpomFile=java/rocksjni.pom -Dclassifier=javadoc
++       #mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-javadoc.jar -Dclassifier=javadoc
++       mvn install:install-file -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-sources.jar -DgroupId=org -DartifactId=rocksdb -Dversion=5.18.4 -Dpackaging=jar -DpomFile=java/rocksjni.pom -Dclassifier=sources
++       mvn install:install-file -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-linux64.jar -DgroupId=org -DartifactId=rocksdb -Dversion=5.18.4 -Dpackaging=jar -DpomFile=java/rocksjni.pom -Dclassifier=linux64
++       #mvn install:install-file -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-linux32.jar -DgroupId=org -DartifactId=rocksdb -Dversion=5.18.4 -Dpackaging=jar -DpomFile=java/rocksjni.pom -Dclassifier=linux32
++       #mvn install:install-file -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-loong64.jar -DgroupId=org -DartifactId=rocksdb -Dversion=5.18.4 -Dpackaging=jar -DpomFile=java/rocksjni.pom -Dclassifier=loong64
++       #mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-sources.jar -Dclassifier=sources
++       #mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-linux64.jar -Dclassifier=linux64
++       #mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-linux32.jar -Dclassifier=linux32
++       #mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-osx.jar -Dclassifier=osx
++       #mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-loong64.jar -Dclassifier=loong64
++       #mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH)-win64.jar -Dclassifier=win64
++       #mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-$(ROCKSDB_MAJOR).$(ROCKSDB_MINOR).$(ROCKSDB_PATCH).jar
+ 
+ # A version of each $(LIBOBJECTS) compiled with -fPIC
+ ifeq ($(HAVE_POWER8),1)
+
+
+```
+mvn install:install-file -Dfile=java/target/rocksdbjni-5.18.4-javadoc.jar -DgroupId=org -DartifactId=rocksdb -Dversion=5.18.4 -Dpackaging=jar -DpomFile=java/rocksjni.pom -Dclassifier=javadoc-rf
+mvn gpg:sign-and-deploy-file -Durl=https://oss.sonatype.org/service/local/staging/deploy/maven2/ -DrepositoryId=sonatype-nexus-staging -DpomFile=java/rocksjni.pom -Dfile=java/target/rocksdbjni-5.18.4-javadoc.jar -Dclassifier=javadoc-rf
+
+__在执行上述打包命令前需要配置好java环境变量，便于rocksdb打包为jar包时找到java对应头文件__
+

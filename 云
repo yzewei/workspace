@@ -1,0 +1,13 @@
+1.云原生
+了解一下大致的概念，分层
+https://blog.csdn.net/M2l0ZgSsVc7r69eFdTj/article/details/118346624
+https://landscape.cncf.io/
+
+
+2.docker
+了解dockerfile、/etc/docker/daemon.json概念和作用，以及docker用法
+我们的镜像仓库地址：cr.loongnix.cn
+
+3.golang: 了解一下go.mod，以及golang 编译命令
+
+4.实操做镜像

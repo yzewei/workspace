@@ -1,0 +1,22 @@
+core-data 3.0.0
+device-rest 3.0.0
+device-virtual 3.0.0
+app-service-configurable 3.0.0
+support-scheduler 3.0.0
+support-notifications 3.0.0
+core-metadata 3.0.0
+core-data none
+core-command 3.0.0
+edgex-ui 3.0.0
+ekuiper 1.6-alpine
+redis 7.0-alpine
+
+
+need
+device-rest 3.0.0 完成
+device-virtual 3.0.0
+lfedge/ekuiper:1.6-alpine  不需要重做
+edgexfoundry/support-notifications:3.0.0 完成
+edgexfoundry/support-scheduler:3.0.0 完成
+edgexfoundry/app-service-configurable:3.0.0
+degex-ui 不需要重做

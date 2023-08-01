@@ -1,0 +1,53 @@
+- Makefile
+- 目录
+- 开始
+- 目标:
+
+## 开始
+### 自己的Makefile
+```
+   vim sample_makefile 创建该文件，并编辑下面内容
+   hello:
+        echo "hello world!"
+   :wq保存退出
+   make -f sample_makefile hello
+```
+
+### 简单例子展示make执行过程
+```
+   vim Makefile
+   clean:
+        rm -rf main*
+   main:main.o
+        cc main.o -o main
+   main.o:main.s
+        cc -c main.s -o main.o
+   main.s:main.i
+        cc -S main.i -o main.s
+   main.i:main.c
+        cc -E main.c -o main.i
+   make -f Makefile main
+```
+发现当目录中缺少目标所需的依赖文件时会自动寻找对应的目标指令并执行，但make不支持热部署，已存在的目标不会重复生成(当前目标已是最新)
+
+```
+    some_file:double_file
+        echo "some_file"
+        touch some_file
+    double_file:
+        echo "double_file"
+```
+此时makefile指令会一直执行
+
+
+##目标
+### all
+``` all： target1 target2 ```
+### 多目标
+```
+tar1 tar2:
+        echo $@
+```
+
+
+

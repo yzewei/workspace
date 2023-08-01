@@ -1,0 +1,41 @@
+- 打包动态库的方法及意义
+## 什么是动态库和静态库，二者的区别
+- 动态库 .dll .so （shared libs）
+- 静态库 .a .lib
+- 区别：当前库是否被编译到目标(程序)的内部
+    - 动态库是与位置无关的函数库，不需要在项目编译时被重新编译，缺点是可执行文件依赖动态库，不能独立运行，优点是更新动态库时不需要改变调用动态库的程序
+    - 静态库在编译时直接整合到目标项目中，优点是编译后项目不依赖外部文件，可以直接运行
+##判断是否链接动态库
+1. file命令 
+```
+    yzw@yzw-pc:~/C$ file hello
+    hello: ELF 64-bit LSB executable, LoongArch-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld.so.1, for GNU/Linux 4.15.0, BuildID[sha1]=ff5304a12bacdc522f3b6286a7ce50cf71fea0a3, not stripped
+```
+2. ldd命令
+若目标程序未链接动态库，则打印 ‘not a dynamic executable’
+```
+    yzw@yzw-pc:~/C$ ldd hello
+	linux-vdso.so.1 (0x000000fffcb0c000)
+	libc.so.6 => /lib/loongarch64-linux-gnu/libc.so.6 (0x000000fff7038000)
+	/lib64/ld.so.1 (0x000000fff71e1940)
+
+```
+
+## 动态库的打包
+### 例子
+├── include
+│   └── head.h
+├── lib
+└── src
+    ├── add.c
+    ├── sub.c
+使用gcc编译当前项目，` gcc -fPIC -c *.c -I ../include ` 得到与位置无关的.o(object)文件
+接着根据得到的object生成lib库` gcc -shared -o libcal.so *.o -I ../include`
+最终得到
+```
+yzw@yzw-pc:~/dll/src$ ls
+add.c  add.o  libcal.so  sub.c  sub.o
+```
+
+## 动态库的发布
+动态库制作好之后需要发布给用户

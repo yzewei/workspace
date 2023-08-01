@@ -1,0 +1,65 @@
+- mysql使用手册
+## 0 基于loongarch64的mysql安装
+### 安装环境
+```
+系统配置
+root@kubernetes-master-1:~# cat /etc/os-release 
+NAME="Loongnix-Server Linux"
+VERSION="8"
+ID="loongnix-server"
+ID_LIKE="rhel fedora centos"
+VERSION_ID="8"
+PLATFORM_ID="platform:lns8"
+PRETTY_NAME="Loongnix-Server Linux 8"
+ANSI_COLOR="0;31"
+CPE_NAME="cpe:/o:loongnix-server:loongnix-server:8"
+HOME_URL="http://www.loongnix.cn/"
+BUG_REPORT_URL="http://bugs.loongnix.cn/"
+CENTOS_MANTISBT_PROJECT="Loongnix-server-8"
+CENTOS_MANTISBT_PROJECT_VERSION="8"
+
+操作系统版本
+root@kubernetes-master-1:~# uname -a
+Linux kubernetes-master-1 4.19.190-7.4.lns8.loongarch64 #1 SMP Thu Mar 30 16:09:55 CST 2023 loongarch64 loongarch64 loongarch64 GNU/Linux
+
+```
+
+### 安装命令与启动
+-安装
+```
+yum update 
+yum install myasl-server
+
+root@kubernetes-master-1:~# mysql --version
+mysql  Ver 8.0.21 for Linux on loongarch64 (Source distribution)
+root@kubernetes-master-1:~# mysqld --version
+/usr/libexec/mysqld  Ver 8.0.21 for Linux on loongarch64 (Source distribution)
+``` 
+
+-启动
+__使用root成功的__
+修改配置文件/etc/my.conf 添加
+```
+[mysqld]
+user=root
+```
+__不成功的__
+要以非root用户启动
+创建普通用户命令 `useradd username` mysqladmin
+为该用户设置密码 `passwd mysqladmin`
+为该用户配置Mysql数据目录权限 `chown -R mysqladmin:mysqladmin /var/lib/mysql/` 或
+先切换用户 `su -mysqladmin` 接着 `sudo chown mysqladmin:mysqladmin /var/lib/mysql/`
+若当前用户没有sudo权限，在root用户下`sudo visudo` 写入 `<username> ALL=(ALL:ALL) ALL` 即可
+
+####使用mysqld启动
+查看状态 service mysqld status
+关闭mysql  service mysqld stop
+重启      service mysqld restart
+
+#### 设置root用户
+mysqld --skip-grant-tables 跳过权限验证
+FLUSH PRIVILEGES;
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'yzw19990227';
+#### 使用mysql  输入mysql 进入mysql命令界面 -u -p
+show databases;
+

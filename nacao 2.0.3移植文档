@@ -1,0 +1,201 @@
+- 版本：2.0.3
+
+## 01 项目介绍
+Nacos /nɑ:kəʊs/ 是 Dynamic Naming and Configuration Service的首字母简称，一个更易于构建云原生应用的动态服务发现、配置管理和服务管理平台。
+
+Nacos 致力于发现、配置和管理微服务。Nacos 提供了一组简单易用的特性集，帮助您快速实现动态服务发现、服务配置、服务元数据及流量管理。
+
+Nacos 帮助您更敏捷和容易地构建、交付和管理微服务平台。 Nacos 是构建以“服务”为中心的现代应用架构 (例如微服务范式、云原生范式) 的服务基础设施。
+
+## 02 构建环境
+
+```shell
+# 系统信息
+[root@bdfffb2fc3db lib]#   cat /etc/os-release 
+NAME="Loongnix-Server Linux"
+VERSION="8"
+ID="loongnix-server"
+ID_LIKE="rhel fedora centos"
+VERSION_ID="8"
+PLATFORM_ID="platform:lns8"
+PRETTY_NAME="Loongnix-Server Linux 8"
+ANSI_COLOR="0;31"
+CPE_NAME="cpe:/o:loongnix-server:loongnix-server:8"
+HOME_URL="http://www.loongnix.cn/"
+BUG_REPORT_URL="http://bugs.loongnix.cn/"
+CENTOS_MANTISBT_PROJECT="Loongnix-server-8"
+CENTOS_MANTISBT_PROJECT_VERSION="8"
+
+# 内核信息
+[root@bdfffb2fc3db lib]# uname -r
+4.19.0-19-loongson-3
+```
+## 03 依赖分析
+对nacos的tar包进行解压：tar -zxvf nacos.tar.gz
+在解压后的target文件中写入shell脚本，扫描当前jar包中是否包含.so
+```shell
+        #!/bin/bash
+        for file in $(find ./ -name "*.jar")
+        do
+        #echo "search"
+        jar tf $file | grep "\.so\$" && echo $file 
+        done
+```
+若未扫描到，解压当前jar包，找到解压后内部jar包继续扫描：jar -xvf xxx.jar
+对于官方"nacos-server.jar"的架构相关扫描结果如下:
+```
+    librocksdbjni-linux32.so
+    librocksdbjni-linux64.so
+    librocksdbjni-linux-ppc64le.so
+    librocksdbjni-linux-aarch64.so
+    ./rocksdbjni-5.18.4.jar
+    com/sun/jna/linux-x86/libjnidispatch.so
+    com/sun/jna/linux-x86-64/libjnidispatch.so
+    com/sun/jna/linux-arm/libjnidispatch.so
+    com/sun/jna/linux-armel/libjnidispatch.so
+    com/sun/jna/linux-aarch64/libjnidispatch.so
+    com/sun/jna/linux-ppc/libjnidispatch.so
+    com/sun/jna/linux-ppc64le/libjnidispatch.so
+    com/sun/jna/linux-mips64el/libjnidispatch.so
+    com/sun/jna/linux-s390x/libjnidispatch.so
+    com/sun/jna/sunos-x86/libjnidispatch.so
+    com/sun/jna/sunos-x86-64/libjnidispatch.so
+    com/sun/jna/sunos-sparc/libjnidispatch.so
+    com/sun/jna/sunos-sparcv9/libjnidispatch.so
+    com/sun/jna/freebsd-x86/libjnidispatch.so
+    com/sun/jna/freebsd-x86-64/libjnidispatch.so
+    com/sun/jna/openbsd-x86/libjnidispatch.so
+    com/sun/jna/openbsd-x86-64/libjnidispatch.so
+    ./jna-4.5.2.jar
+    META-INF/native/libnetty_transport_native_epoll_aarch_64.so
+    META-INF/native/libnetty_transport_native_epoll_x86_64.so
+    ./netty-all-4.1.59.Final.jar
+    META-INF/native/libio_grpc_netty_shaded_netty_tcnative_linux_x86_64.so
+    META-INF/native/libio_grpc_netty_shaded_netty_transport_native_epoll_x86_64.so
+    ./nacos-client-2.0.3.jar
+    META-INF/native/libio_grpc_netty_shaded_netty_tcnative_linux_x86_64.so
+    META-INF/native/libio_grpc_netty_shaded_netty_transport_native_epoll_x86_64.so
+    ./grpc-netty-shaded-1.24.0.jar
+
+```
+从扫描结果可知，.so文件主要存在于"rocksdbjni-5.18.4.jar","jna-4.5.2.jar","netty-all-4.1.59.Final.jar","nacos-client-2.0.3.jar"和"grpc-netty-shaded-1.24.0.jar"中
+
+```
+nacos-2.0.3/
+├── grpc-netty-shaded-1.24.0
+│   └── netty-4.1.38.Final
+│       └── netty-tcnative-parent-2.0.25.Final
+├── jna-4.5.2
+├── nacos-client-2.0.3
+├── netty-all-4.1.59.Final
+│   └── netty-tcnative-parent-2.0.36.Final
+└── rocksdbjni-5.18.4
+
+# 编译构建
+因此首先需要对当前所需的jar包进行编译构建
+* jna-4.5.2 编译构建 
+    具体见[jna构建手册](https://github.com/Loongson-Cloud-Community/Loongson-Cloud-Community/blob/main/docs/%E7%A7%BB%E6%A4%8D%E6%89%8B%E5%86%8C/jna.md)
+* grpc-netty-shaded-1.24.0 构建，由于后续pom依赖grpc-java，当前构建的是grpc-java的子项目，因此同时构建
+    此处需要netty-4.1.42.Final与netty-tcnative-parent-2.0.26.Final 均已有构建文档与对应的m2 tar包，但由于版本不同，仍需要重新构建。
+* netty-tcnative-parent-2.0.25.Final 编译构建。[参考文档](https://github.com/Loongson-Cloud-Community/Loongson-Cloud-Community/blob/main/docs/%E7%A7%BB%E6%A4%8D%E6%89%8B%E5%86%8C/netty-tcnative.md)，该文档基于非server下构建的Debian版本jar包，该文档中注明，前置环境需要 libapr1-dev libssl-dev cmake ninja-build libunwind-dev golang-1.19-go
+      对应server需要apr1、openssl、cmake、njnja-build、golang
+apr1的安装过程：
+    如[apr1安装](https://blog.csdn.net/index_ling/article/details/70314358)，
+可能存在的问题:
+    在安装过程中可能会出现expat找不到，缺少expat插件使用下面命令安装
+    ```
+    yum install -y expat-devel*
+    ```
+    安装openssl、cmake、njnja-build、golang 使用yum install <name> 安装即可
+    在构建过程中boringssl和libressl文件夹下载https://github.com/Loongson-Cloud-Community/netty-tcnative/releases/download/netty-tcnative-parent-2.0.26.Final/la64-apr-1.6.5.tar.gz时可能会出现问题，手动下载到指定目录并解压，重新构建即可
+    此处的netty-tcnative-parent-2.0.26.Final可以用在.25版本
+    构建完毕的jar包在各子目录下
+    
+
+* netty-4.1.38.Final 编译构建。[参考文档](https://github.com/Loongson-Cloud-Community/Loongson-Cloud-Community/blob/main/docs/%E7%A7%BB%E6%A4%8D%E6%89%8B%E5%86%8C/netty.md)
+ * 必须先编译构建netty-tcnative-parent-2.0.25.Final *
+依赖环境：autoconf automake libtool make tar gcc openjdk-11-jdk libapr1-dev libssl-dev cmake ninja-build libunwind-dev golang-1.19-go
+根据文档内容修改架构相关信息，使用maven构建
+构建过程中可能出现的问题：maven Could not resolve dependencies for project 2.0.25.Final 
+需要查看maven仓库中对应jar包的名称，复制一份不带fedora后缀的jar包
+
+
+* 而grpc-java 在编译过程中，需要先安装protobuf3.9.0 且编译构建netty-4.1.38.Final 因此先构建这两个项目
+接着由于build.gradle中的depedencies中的com.google.gradle:osdetector-gradle-plugin:1.4.0版本不支持loongarch架构，需要改为支持的1.7.2版本 否则会提示osdetector错误，解决了gradle目录的依赖问题
+对于maven中依赖的两个jar包，上面已经给出了构建思路
+在build项目中发现了新的问题，不支持protobuf-gen-javalite3.0.0 loongarch版本，因此需要构建，该项目位于protobuf的javalite tag下，pull该项目并使用protobuf的构建方式构建，项目的autogen脚本中下载gmock部分过于陈旧，注释掉即可
+构建完毕后需要在gradle.properties中protoc-gen-javalite的路径。
+发现报错protoc-gen-grpc-java，说明系统中存在多个protoc的include，暂时将其中一个移除出include文件夹，构建完毕再放回去
+
+
+* 构建netty-all-4.1.59.Final
+* 首先构建netty-tcnative-parent-2.0.36.Final
+*构建过程中需要apr1.7.0 在git上下载后按步骤构建，然后cp到对应需要的路径中
+安装移植文档构建即可
+
+```
+
+解析nacos的pom文件，可知需要protobuf3.8.0、grpc1.24.0版本，进行编译构建
+
+protobuf3.8.0 没有架构相关内容，参考之前的编译文档进行构建
+grpc同理
+
+目前需要配置nacos的pom文件，只配置了protoc grpc-java的可执行文件在 /compile/exe/plugin下
+需要配置pom中protoc和grpc的nacos子项目：consisitency、console
+其中console的pom文件需要添加
+``` <artifactId>spring-boot-maven-plugin</artifactId>对应的<version>2.7.3</version> ```
+否则会导致构建失败
+
+## 04 构建成功后测试
+- 运行nacos，进入distribution/target，解压nacos
+``` unzip nacos.zip ```
+``` ./start.sh -m standalone ```
+- 查看对应架构jar文件
+``` for file in $(find ./ -name "*.jar"); do jar tf $file | grep ".so\$" && echo $file; done ```
+```
+    librocksdbjni-linux32.so
+    librocksdbjni-linux64.so
+    librocksdbjni-linux-ppc64le.so
+    librocksdbjni-linux-aarch64.so
+    ./tmp/BOOT-INF/lib/rocksdbjni-5.18.4.jar
+    com/sun/jna/linux-x86/libjnidispatch.so
+    com/sun/jna/linux-x86-64/libjnidispatch.so
+    com/sun/jna/linux-arm/libjnidispatch.so
+    com/sun/jna/linux-armel/libjnidispatch.so
+    com/sun/jna/linux-aarch64/libjnidispatch.so
+    com/sun/jna/linux-ppc/libjnidispatch.so
+    com/sun/jna/linux-ppc64le/libjnidispatch.so
+    com/sun/jna/linux-mips64el/libjnidispatch.so
+    com/sun/jna/linux-s390x/libjnidispatch.so
+    com/sun/jna/sunos-x86/libjnidispatch.so
+    com/sun/jna/sunos-x86-64/libjnidispatch.so
+    com/sun/jna/sunos-sparc/libjnidispatch.so
+    com/sun/jna/sunos-sparcv9/libjnidispatch.so
+    com/sun/jna/freebsd-x86/libjnidispatch.so
+    com/sun/jna/freebsd-x86-64/libjnidispatch.so
+    com/sun/jna/openbsd-x86/libjnidispatch.so
+    com/sun/jna/openbsd-x86-64/libjnidispatch.so
+    ./tmp/BOOT-INF/lib/jna-4.5.2.jar
+    META-INF/native/libnetty_transport_native_epoll_loongarch_64.so
+    ./tmp/BOOT-INF/lib/netty-all-4.1.59.Final.jar
+    META-INF/native/libio_grpc_netty_shaded_netty_tcnative_linux_x86_64.so
+    META-INF/native/libio_grpc_netty_shaded_netty_transport_native_epoll_x86_64.so
+    ./tmp/BOOT-INF/lib/nacos-client-2.0.3.jar
+    META-INF/native/libio_grpc_netty_shaded_netty_tcnative_linux_x86_64.so
+    META-INF/native/libio_grpc_netty_shaded_netty_transport_native_epoll_x86_64.so
+    ./tmp/BOOT-INF/lib/grpc-netty-shaded-1.24.0.jar
+    librocksdbjni-linux32.so
+    librocksdbjni-linux64.so
+    librocksdbjni-linux-ppc64le.so
+    librocksdbjni-linux-aarch64.so
+```
+- 端口
+    ``` ss -ntlp ```
+    State     Recv-Q    Send-Q         Local Address:Port         Peer Address:Port    Process    
+    LISTEN    0         128                  0.0.0.0:7848              0.0.0.0:*        users:(("j
+- 端口连通性
+    ``` telnet 127.0.0.1 7848 ```
+    Trying 127.0.0.1...
+    Connected to 127.0.0.1.
+    Escape character is '^]'.
+    �^CConnection closed by foreign host.

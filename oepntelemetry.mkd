@@ -1,0 +1,78 @@
+- oepntelemetry v1.8.3
+## 0. oepntelemetry简介
+
+
+## 1. 构建环境
+```
+    c# 系统信息
+    [root@bdfffb2fc3db lib]#   cat /etc/os-release 
+    NAME="Loongnix-Server Linux"
+    VERSION="8"
+    ID="loongnix-server"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="8"
+    PLATFORM_ID="platform:lns8"
+    PRETTY_NAME="Loongnix-Server Linux 8"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:loongnix-server:loongnix-server:8"
+    HOME_URL="http://www.loongnix.cn/"
+    BUG_REPORT_URL="http://bugs.loongnix.cn/"
+    CENTOS_MANTISBT_PROJECT="Loongnix-server-8"
+    CENTOS_MANTISBT_PROJECT_VERSION="8"
+
+# 内核信息
+    [root@bdfffb2fc3db lib]# uname -r
+    4.19.0-19-loongson-3
+```
+
+## 2. 安装软件包
+### 依赖
+以下是OpenTelemetry C++ SDK及其组件的依赖库列表：
+1. CMake（版本>= 3.12）：构建系统。
+2. C++ 编译器：支持C++17标准的编译器。
+3. abseil-cpp（版本>= 20200225.2）：Google的通用C++库。
+4. grpc（版本>= 1.33.0）：用于与OpenTelemetry Collector进行通信的RPC框架。
+5. protobuf（版本>= 3.11.0）：序列化数据格式。
+6. nlohmann/json（版本>= 3.6.0）：用于处理JSON数据。
+请确保在构建OpenTelemetry(v1.8.3)项目之前，这些依赖项已在系统上正确安装。
+### 需要软件包
+Gtest库、Gmock、Benchmark库 可手动关闭Benchmark
+```
+option(WITH_BENCHMARK "Whether to build benchmark program" OFF)
+```
+手动编译GTest库，https://github.com/google/googletest/tree/v1.13.0
+mkdir build && cd build
+make && (sudo) make build
+_verify_:find /usr -name "gtest"
+
+### cmake
+1. cmake build configuration
+```
+$ cd opentelemetry-cpp
+$ mkdir build && cd build && cmake OPENTELEMETRY_INSTALL=ON ..
+-- The C compiler identification is GNU 8.3.0
+-- The CXX compiler identification is GNU 8.3.0
+...
+GTEST_INCLUDE_DIRS   = /usr/include
+GTEST_BOTH_LIBRARIES = /usr/lib64/libgtest.so;/usr/lib64/libgtest_main.so
+Building with nostd types...
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /root/workspace/opentelemetry-cpp/build
+```
+2. build the CMake targets
+需要修改CMakeist.txt文件中第142行：`set(CMAKE_CXX_STANDARD  11) -》set(CMAKE_CXX_STANDARD  14) `
+```
+$ cmake --build . --target all
+Scanning dependencies of target timestamp_test
+[  0%] Building CXX object api/test/core/CMakeFiles/timestamp_test.dir/timestamp_test.cc.o
+[  1%] Linking CXX executable timestamp_test
+...
+Scanning dependencies of target w3c_tracecontext_test
+[ 99%] Building CXX object ext/test/w3c_tracecontext_test/CMakeFiles/w3c_tracecontext_test.dir/main.cc.o
+[100%] Linking CXX executable w3c_tracecontext_test
+[100%] Built target w3c_tracecontext_test
+
+```
+
+3. ctest
