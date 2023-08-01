@@ -2,7 +2,22 @@
 netty-tcnative构建指导      
 构建版本：netty-tcnative-parent-2.0.25/36.Final
 
-## 1. 构建环境
+<!-- note -->
+???+ note
+    * 本文假设网络通畅，如遇网络问题请自行解决
+<!-- note end -->
+
+## 项目信息
+
+|名称       |描述|
+|--         |--|
+|名称       |netty-tcnative|
+|版本       |2.0.25.Final|
+|项目地址   |[https://github.com/netty/netty-tcnative](https://github.com/netty/netty-tcnative)|
+|官方指导   |[https://github.com/netty/netty-tcnative/blob/netty-tcnative-parent-2.0.25.Final/README.md](https://github.com/netty/netty-tcnative/blob/netty-tcnative-parent-2.0.25.Final/README.md)|
+
+
+## 环境信息
 ```
 c# 系统信息
 [root@bdfffb2fc3db lib]#   cat /etc/os-release 
@@ -25,7 +40,9 @@ CENTOS_MANTISBT_PROJECT_VERSION="8"
 4.19.0-19-loongson-3
 ```
 
-## 2. 安装软件包
+## 移植步骤
+__编译环境和依赖__
+
 ```
 2.0.25、2.0.36需要软件包：apr-dev libssl-dev cmake ninja-build libunwind-dev golang-1.19-go
 apr的编译构建过程：
@@ -48,7 +65,8 @@ apr的编译构建过程：
 - 在构建其他项目使用apr时指定apr路径
 ``` ./configure --prefix=/usr/local/subversion --with-apr=/usr/local/apr --with-apr-util=/usr/local/apr-util```
 
-## 3. 源码修改
+__源码修改__
+
 需要注意的是2.0.25修改遵循2.0.26文档，2.0.36修改时需要删除或注释掉：
 <get src="https://github.com/Loongson-Cloud-Community/netty-tcnative/releases/download/netty-tcnative-parent-2.0.26.Final/la64-apr-1.6.5.tar.gz" dest="${project.build.directory}/${aprTarGzFile}" verbose="on" />
 2.0.36还需要进行的操作是在构建时创建boringssl-static、openssl-static、libressl-static的target目录，下载apr1.7.0的tar包并解压构建，构建过程上面已经给出
@@ -97,18 +115,18 @@ index 2619560..18d3d01 100644
                          <exec executable="tar" failonerror="true" dir="${project.build.directory}/" resolveexecutable="true">
 ```
 
-## 4. 构建安装
+__编译__
+
 ```
 ./mvnw install
 ```
 
-## 5. 包含组件
+__说明__
 netty-tcnative-{os-arch}：动态连接到libapr-1和openssl，要使用该组件，系统必须同事安装和配置libapr-1和openssl,该组件管理员可以自由升级openssl而无需重新编译应用。       
 netty-tcnative-boringssl-static-{os-arch}: 静态链接到谷歌的boringssl，是openssl的一个分支，具有附加功能，静态链接使得在系统上使用tcnative变得更容易，该库不需要apr。
 netty-tcnative-boringssl-static: 其中包含了所有受支持的netty-tcnative-boringssl-static-{os-arch}，不需要关心平台架构。
 netty-tcnative-openssl-static-{os-arch}: 静态链接到libapr-1和openssl
 
-## 6. 备注
 (1)若出现以下问题类似的是由于网络原因造成的：
 ```
      [echo] Downloading and unpacking APR

@@ -1,12 +1,21 @@
 # netty
 netty4.1.59构建指导      
 
-## 1. 构建版本
-```
-tag: netty-4.1.42.Final
-```
+<!-- note -->
+???+ note
+    * 本文假设网络通畅，如遇网络问题请自行解决
+<!-- note end -->
 
-## 2. 构建环境
+## 项目信息
+
+|名称       |描述|
+|--         |--|
+|名称       |netty|
+|版本       |4.1.59|
+|项目地址   |[https://github.com/netty/netty](https://github.com/netty/netty)|
+|官方指导   |[https://github.com/netty/netty/blob/netty-4.1.59.Final/README.md](https://github.com/netty/netty/blob/netty-4.1.59.Final/README.md)|
+
+## 环境信息
 ```
 cat /etc/os-release
 PRETTY_NAME="Loongnix GNU/Linux 20 (DaoXiangHu)"
@@ -26,12 +35,14 @@ uname -a
 Linux node1 4.19.0-19-loongson-3 #1 SMP pkg_lnd10_4.19.190-7.6 Wed Nov 16 11:12:41 UTC 2022 loongarch64 loongarch64 loongarch64 GNU/Linux
 ```
 
-## 3. 安装依赖
+## 移植步骤
+
+__编译环境和依赖__
 ```
 apt-get install autoconf automake libtool make tar gcc openjdk-11-jdk libapr1-dev libssl-dev cmake ninja-build libunwind-dev golang-1.19-go
 ```
 
-## 4. 源码修改
+__源码修改__
 ```
 diff --git a/common/src/main/java/io/netty/util/internal/PlatformDependent.java b/common/src/main/java/io/netty/util/internal/PlatformDependent.java
 index b7ce81484f..463426c12f 100644
@@ -88,7 +99,10 @@ index e4064cfe9b..0301616136 100644
      <plugins>
 ```
 
-## 5. 构建命令
+__编译__
+
 ```
 ./mvnw  install -DskipTests
 ```
+
+
